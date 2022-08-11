@@ -32,15 +32,15 @@ class ItemsRepository(BaseRepository):  # noqa: WPS214
         self._tags_repo = TagsRepository(conn)
 
     async def create_item(  # noqa: WPS211
-        self,
-        *,
-        slug: str,
-        title: str,
-        description: str,
-        seller: User,
-        body: Optional[str] = None,
-        image: Optional[str] = None,
-        tags: Optional[Sequence[str]] = None,
+            self,
+            *,
+            slug: str,
+            title: str,
+            description: str,
+            seller: User,
+            body: Optional[str] = None,
+            image: Optional[str] = None,
+            tags: Optional[Sequence[str]] = None,
     ) -> Item:
         async with self.connection.transaction():
             item_row = await queries.create_new_item(
@@ -65,13 +65,13 @@ class ItemsRepository(BaseRepository):  # noqa: WPS214
         )
 
     async def update_item(  # noqa: WPS211
-        self,
-        *,
-        item: Item,
-        slug: Optional[str] = None,
-        title: Optional[str] = None,
-        body: Optional[str] = None,
-        description: Optional[str] = None,
+            self,
+            *,
+            item: Item,
+            slug: Optional[str] = None,
+            title: Optional[str] = None,
+            body: Optional[str] = None,
+            description: Optional[str] = None,
     ) -> Item:
         updated_item = item.copy(deep=True)
         updated_item.slug = slug or updated_item.slug
@@ -101,41 +101,65 @@ class ItemsRepository(BaseRepository):  # noqa: WPS214
             )
 
     async def filter_items(  # noqa: WPS211
-        self,
-        *,
-        tag: Optional[str] = None,
-        seller: Optional[str] = None,
-        favorited: Optional[str] = None,
-        limit: int = 20,
-        offset: int = 0,
-        requested_user: Optional[User] = None,
+            self,
+            *,
+            title: Optional[str] = None,
+            tag: Optional[str] = None,
+            seller: Optional[str] = None,
+            favorited: Optional[str] = None,
+            limit: int = 20,
+            offset: int = 0,
+            requested_user: Optional[User] = None,
     ) -> List[Item]:
         query_params: List[Union[str, int]] = []
         query_params_count = 0
 
-        # fmt: off
-        query = Query.from_(
-            items,
-        ).select(
-            items.id,
-            items.slug,
-            items.title,
-            items.description,
-            items.body,
-            items.image,
-            items.created_at,
-            items.updated_at,
-            Query.from_(
-                users,
-            ).where(
-                users.id == items.seller_id,
+        if title:
+            query = Query.from_(
+                items,
             ).select(
-                users.username,
-            ).as_(
-                SELLER_USERNAME_ALIAS,
-            ),
-        )
-        # fmt: on
+                items.id,
+                items.slug,
+                items.title,
+                items.description,
+                items.body,
+                items.image,
+                items.created_at,
+                items.updated_at,
+                Query.from_(
+                    users,
+                ).where(
+                    (users.id == items.seller_id),
+                ).select(
+                    users.username,
+                ).as_(
+                    SELLER_USERNAME_ALIAS,
+                ),
+            ).where((items.title.like('%'+title+'%')))
+        else:
+            # fmt: off
+            query = Query.from_(
+                items,
+            ).select(
+                items.id,
+                items.slug,
+                items.title,
+                items.description,
+                items.body,
+                items.image,
+                items.created_at,
+                items.updated_at,
+                Query.from_(
+                    users,
+                ).where(
+                    (users.id == items.seller_id),
+                ).select(
+                    users.username,
+                ).as_(
+                    SELLER_USERNAME_ALIAS,
+                ),
+            )
+            # fmt: on
 
         if tag:
             query_params.append(tag)
@@ -146,13 +170,13 @@ class ItemsRepository(BaseRepository):  # noqa: WPS214
                 items_to_tags,
             ).on(
                 (items.id == items_to_tags.item_id) & (
-                    items_to_tags.tag == Query.from_(
-                        tags_table,
-                    ).where(
-                        tags_table.tag == Parameter(query_params_count),
-                    ).select(
-                        tags_table.tag,
-                    )
+                        items_to_tags.tag == Query.from_(
+                    tags_table,
+                ).where(
+                    tags_table.tag == Parameter(query_params_count),
+                ).select(
+                    tags_table.tag,
+                )
                 ),
             )
             # fmt: on
@@ -166,13 +190,13 @@ class ItemsRepository(BaseRepository):  # noqa: WPS214
                 users,
             ).on(
                 (items.seller_id == users.id) & (
-                    users.id == Query.from_(
-                        users,
-                    ).where(
-                        users.username == Parameter(query_params_count),
-                    ).select(
-                        users.id,
-                    )
+                        users.id == Query.from_(
+                    users,
+                ).where(
+                    users.username == Parameter(query_params_count),
+                ).select(
+                    users.id,
+                )
                 ),
             )
             # fmt: on
@@ -186,16 +210,15 @@ class ItemsRepository(BaseRepository):  # noqa: WPS214
                 favorites,
             ).on(
                 (items.id == favorites.item_id) & (
-                    favorites.user_id == Query.from_(
-                        users,
-                    ).where(
-                        users.username == Parameter(query_params_count),
-                    ).select(
-                        users.id,
-                    )
+                        favorites.user_id == Query.from_(
+                    users,
+                ).where(
+                    users.username == Parameter(query_params_count),
+                ).select(
+                    users.id,
+                )
                 ),
             )
-            # fmt: on
 
         query = query.limit(Parameter(query_params_count + 1)).offset(
             Parameter(query_params_count + 2),
@@ -210,11 +233,11 @@ class ItemsRepository(BaseRepository):  # noqa: WPS214
         ]
 
     async def get_items_for_user_feed(
-        self,
-        *,
-        user: User,
-        limit: int = 20,
-        offset: int = 0,
+            self,
+            *,
+            user: User,
+            limit: int = 20,
+            offset: int = 0,
     ) -> List[Item]:
         items_rows = await queries.get_items_for_feed(
             self.connection,
@@ -233,10 +256,10 @@ class ItemsRepository(BaseRepository):  # noqa: WPS214
         ]
 
     async def get_item_by_slug(
-        self,
-        *,
-        slug: str,
-        requested_user: Optional[User] = None,
+            self,
+            *,
+            slug: str,
+            requested_user: Optional[User] = None,
     ) -> Item:
         item_row = await queries.get_item_by_slug(self.connection, slug=slug)
         if item_row:
@@ -278,10 +301,10 @@ class ItemsRepository(BaseRepository):  # noqa: WPS214
         )
 
     async def remove_item_from_favorites(
-        self,
-        *,
-        item: Item,
-        user: User,
+            self,
+            *,
+            item: Item,
+            user: User,
     ) -> None:
         await queries.remove_item_from_favorites(
             self.connection,
@@ -290,12 +313,12 @@ class ItemsRepository(BaseRepository):  # noqa: WPS214
         )
 
     async def _get_item_from_db_record(
-        self,
-        *,
-        item_row: Record,
-        slug: str,
-        seller_username: str,
-        requested_user: Optional[User],
+            self,
+            *,
+            item_row: Record,
+            slug: str,
+            seller_username: str,
+            requested_user: Optional[User],
     ) -> Item:
         title_query = Query.from_(items).select(items.title).where(items.slug == slug)
         result_rows = await self.connection.fetch(title_query.get_sql())
