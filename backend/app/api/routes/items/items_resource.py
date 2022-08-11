@@ -1,5 +1,4 @@
-from typing import Optional
-
+from typing import Optional, Union
 from fastapi import APIRouter, Body, Depends, HTTPException, Response
 from starlette import status
 
@@ -30,11 +29,12 @@ router = APIRouter()
 
 @router.get("", response_model=ListOfItemsInResponse, name="items:list-items")
 async def list_items(
-    items_filters: ItemsFilters = Depends(get_items_filters),
-    user: Optional[User] = Depends(get_current_user_authorizer(required=False)),
-    items_repo: ItemsRepository = Depends(get_repository(ItemsRepository)),
+        items_filters: ItemsFilters = Depends(get_items_filters),
+        user: Optional[User] = Depends(get_current_user_authorizer(required=False)),
+        items_repo: ItemsRepository = Depends(get_repository(ItemsRepository)),
 ) -> ListOfItemsInResponse:
     items = await items_repo.filter_items(
+        title=items_filters.title,
         tag=items_filters.tag,
         seller=items_filters.seller,
         favorited=items_filters.favorited,
@@ -58,9 +58,9 @@ async def list_items(
     name="items:create-item",
 )
 async def create_new_item(
-    item_create: ItemInCreate = Body(..., embed=True, alias="item"),
-    user: User = Depends(get_current_user_authorizer()),
-    items_repo: ItemsRepository = Depends(get_repository(ItemsRepository)),
+        item_create: ItemInCreate = Body(..., embed=True, alias="item"),
+        user: User = Depends(get_current_user_authorizer()),
+        items_repo: ItemsRepository = Depends(get_repository(ItemsRepository)),
 ) -> ItemInResponse:
     slug = get_slug_for_item(item_create.title)
     if await check_item_exists(items_repo, slug):
@@ -83,7 +83,7 @@ async def create_new_item(
 
 @router.get("/{slug}", response_model=ItemInResponse, name="items:get-item")
 async def retrieve_item_by_slug(
-    item: Item = Depends(get_item_by_slug_from_path),
+        item: Item = Depends(get_item_by_slug_from_path),
 ) -> ItemInResponse:
     return ItemInResponse(item=ItemForResponse.from_orm(item))
 
@@ -95,9 +95,9 @@ async def retrieve_item_by_slug(
     dependencies=[Depends(check_item_modification_permissions)],
 )
 async def update_item_by_slug(
-    item_update: ItemInUpdate = Body(..., embed=True, alias="item"),
-    current_item: Item = Depends(get_item_by_slug_from_path),
-    items_repo: ItemsRepository = Depends(get_repository(ItemsRepository)),
+        item_update: ItemInUpdate = Body(..., embed=True, alias="item"),
+        current_item: Item = Depends(get_item_by_slug_from_path),
+        items_repo: ItemsRepository = Depends(get_repository(ItemsRepository)),
 ) -> ItemInResponse:
     slug = get_slug_for_item(item_update.title) if item_update.title else None
     item = await items_repo.update_item(
@@ -116,7 +116,7 @@ async def update_item_by_slug(
     response_class=Response,
 )
 async def delete_item_by_slug(
-    item: Item = Depends(get_item_by_slug_from_path),
-    items_repo: ItemsRepository = Depends(get_repository(ItemsRepository)),
+        item: Item = Depends(get_item_by_slug_from_path),
+        items_repo: ItemsRepository = Depends(get_repository(ItemsRepository)),
 ) -> None:
     await items_repo.delete_item(item=item)
